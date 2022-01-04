@@ -15,7 +15,6 @@ add_library(util
             Sources/Absolute.cpp
             Sources/Relative.cpp
             Sources/Unix.cpp
-            Sources/Windows.cpp
             #
             Sources/Options.cpp
             #
@@ -35,5 +34,4 @@ if (BUILD_TESTING)
   ADD_UNIT_GTEST(util Wildcard Tests/test_Wildcard.cpp)
   ADD_UNIT_GTEST(util Escape Tests/test_Escape.cpp)
   ADD_UNIT_GTEST(util Unix Tests/test_Unix.cpp)
-  ADD_UNIT_GTEST(util Windows Tests/test_Windows.cpp)
 endif ()

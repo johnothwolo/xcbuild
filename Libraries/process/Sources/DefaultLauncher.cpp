@@ -10,13 +10,9 @@
 #include <process/Context.h>
 #include <libutil/Filesystem.h>
 
-#if _WIN32
-#include <windows.h>
-#else
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#endif
 
 // In most cases, size of pipe will be greater than one page,
 #define PIPE_BUFFER_SIZE 4096
@@ -24,72 +20,6 @@
 using process::DefaultLauncher;
 using process::Context;
 using libutil::Filesystem;
-
-#if _WIN32
-using WideString = std::basic_string<std::remove_const<std::remove_pointer<LPCWSTR>::type>::type>;
-
-static WideString
-StringToWideString(std::string const &str)
-{
-    int size = MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.size(), NULL, 0);
-    WideString wide = WideString();
-    wide.resize(size);
-    MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.size(), &wide[0], size);
-    return wide;
-}
-
-static WideString
-EscapedToken(const WideString &token)
-{
-    if (token.find_first_of(StringToWideString(" \t\n\v\"")) == std::string::npos) {
-        return token;
-    }
-
-    WideString escapedToken = StringToWideString("\"");
-    WideString special = StringToWideString("\"\\");
-    for (auto it = token.begin(); it != token.end(); ++it) {
-        /* Find the first backslash or quote. */
-        size_t first_ = token.find_first_of(special, it - token.begin());
-        auto first = (first_ == std::string::npos ? token.end() : token.begin() + first_);
-
-        /* Copy up to the first special character. */
-        escapedToken.insert(escapedToken.end(), it, first);
-
-        if (first == token.end()) {
-            /* Nothing special; jump to the end. */
-            it = std::prev(first);
-        } else if (*first == L'"') {
-            /* Escape and append the quote itself. */
-            escapedToken += L'\\';
-            escapedToken += *first;
-
-            /* Move past the quote. */
-            it = first;
-        } else if (*first == L'\\') {
-            /* Find next non-backslash character after the first backslash. */
-            size_t after_ = token.find_first_not_of(L'\\', first - token.begin());
-            auto after = (after_ == std::string::npos ? token.end() : token.begin() + after_);
-
-            if (after == token.end() || *after == L'"') {
-                /* Duplicate (escape) all backslashes before (possibly ending) quote. */
-                escapedToken.insert(escapedToken.end(), first, after);
-                escapedToken.insert(escapedToken.end(), first, after);
-            } else {
-                /* Not before quote, no need to escape backslashes. */
-                escapedToken.insert(escapedToken.end(), first, after);
-            }
-
-            /* Jump to the next non-backslash character. */
-            it = std::prev(after);
-        } else {
-            abort();
-        }
-    }
-
-    escapedToken += L'"';
-    return escapedToken;
-}
-#endif
 
 DefaultLauncher::
 DefaultLauncher() :
@@ -105,61 +35,6 @@ DefaultLauncher::
 ext::optional<int> DefaultLauncher::
 launch(Filesystem *filesystem, Context const *context)
 {
-#if _WIN32
-    WideString executablePath = StringToWideString(context->executablePath());
-
-    WideString arguments = EscapedToken(executablePath);
-    for (std::string const &argument : context->commandLineArguments()) {
-        arguments += L' ';
-        arguments += EscapedToken(StringToWideString(argument));
-    }
-
-    WideString environment;
-    for (auto const &entry : context->environmentVariables()) {
-        environment += StringToWideString(entry.first);
-        environment += StringToWideString("=");
-        environment += StringToWideString(entry.second);
-        environment += L'\0';
-    }
-
-    WideString currentDirectory = StringToWideString(context->currentDirectory());
-
-    STARTUPINFOW startup;
-    memset(&startup, 0, sizeof(startup));
-    startup.cb = sizeof(startup);
-
-    PROCESS_INFORMATION process;
-    if (!CreateProcessW(
-        executablePath.c_str(),
-        &arguments[0],
-        nullptr,
-        nullptr,
-        FALSE,
-        CREATE_UNICODE_ENVIRONMENT,
-        static_cast<LPVOID>(&environment[0]),
-        currentDirectory.c_str(),
-        &startup,
-        &process)) {
-        return ext::nullopt;
-    }
-
-    /* Wait until the spawned process finishes */
-    WaitForSingleObject(process.hProcess, INFINITE);
-
-    /* Get the exit code of the process */
-    DWORD status;
-    bool getExitCodeProcessSuccess = GetExitCodeProcess(process.hProcess, &status);
-
-    /* Close process handles */
-    CloseHandle(process.hThread);
-    CloseHandle(process.hProcess);
-
-    if (getExitCodeProcessSuccess) {
-        return static_cast<int>(status);
-    } else {
-        return ext::nullopt;
-    }
-#else
     /*
      * Extract input data for exec, so no C++ is required after fork.
      */
@@ -265,5 +140,4 @@ launch(Filesystem *filesystem, Context const *context)
         ::waitpid(pid, &status, 0);
         return WEXITSTATUS(status);
     }
-#endif
 }

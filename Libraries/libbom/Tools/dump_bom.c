@@ -12,11 +12,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#if _WIN32
-#include <winsock2.h>
-#else
 #include <arpa/inet.h>
-#endif
 
 static void
 _bom_tree_dump(struct bom_tree_context *tree, void *key, size_t key_len, void *value, size_t value_len, void *ctx)

@@ -10,21 +10,12 @@
 #define __libutil_Strings_h
 
 #include <libutil/Filesystem.h>
-
-#if defined(_WIN32)
-#include <string.h>
-#else
 #include <strings.h>
-#endif
 
 namespace libutil {
 
 static inline int strcasecmp(const char *s1, const char *s2) {
-#if defined(_WIN32)
-  return ::_stricmp(s1, s2);
-#else
   return ::strcasecmp(s1, s2);
-#endif
 }
 
 }

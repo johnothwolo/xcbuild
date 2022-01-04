@@ -12,7 +12,6 @@
 using libutil::FSUtil;
 
 // TODO: remove these tests once FSUtil is unused
-#if !_WIN32
 
 template <typename T>
 void EXPECT_VECTOR_EQ(std::vector<T> const &x, std::vector<T> const &y) {
@@ -137,5 +136,3 @@ TEST(FSUtil, NormalizeComponents)
     EXPECT_VECTOR_EQ({ "..", "..", ".." }, FSUtil::NormalizePathComponents("a/../../../.."));
     EXPECT_VECTOR_EQ({ "/" }, FSUtil::NormalizePathComponents("////"));
 }
-
-#endif

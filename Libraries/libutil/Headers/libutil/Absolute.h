@@ -11,7 +11,6 @@
 
 #include <libutil/Relative.h>
 #include <libutil/Unix.h>
-#include <libutil/Windows.h>
 
 #include <string>
 #include <ext/optional>
@@ -102,11 +101,7 @@ public:
     { return BaseRelative<Traits>(raw).absolute(); }
 };
 
-#if _WIN32
-using Absolute = BaseAbsolute<Windows>;
-#else
 using Absolute = BaseAbsolute<Unix>;
-#endif
 
 }
 }

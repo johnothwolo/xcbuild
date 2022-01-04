@@ -71,22 +71,14 @@ Directory(std::string const &name, std::vector<Entry> const &children)
 
 MemoryFilesystem::
 MemoryFilesystem(std::vector<MemoryFilesystem::Entry> const &entries) :
-#if _WIN32
-    _root(MemoryFilesystem::Entry::Directory("C:", entries))
-#else
     _root(MemoryFilesystem::Entry::Directory("", entries))
-#endif
 {
 }
 
 std::string MemoryFilesystem::
 path(std::string const &path) const
 {
-#if _WIN32
-    return "C:\\" + path;
-#else
     return "/" + path;
-#endif
 }
 
 template<typename T, typename U, typename V>
@@ -111,12 +103,7 @@ WalkPath(
     assert(current->type() == Filesystem::Type::Directory);
 
     std::string::size_type start = 0;
-#if _WIN32
-    std::string::size_type end = normalized.find('\\', start);
-#else
     std::string::size_type end = normalized.find('/', start);
-#endif
-
     std::string name = normalized.substr(start, end - start);
 
     // TODO: this assumes a root matching a path component
@@ -125,11 +112,7 @@ WalkPath(
     }
 
     start = end + 1;
-#if _WIN32
-    end = normalized.find('\\', start);
-#else
     end = normalized.find('/', start);
-#endif
 
     do {
         bool final = (end == std::string::npos);
@@ -160,11 +143,7 @@ WalkPath(
 
         /* Move to next path component. */
         start = end + 1;
-#if _WIN32
-        end = normalized.find('\\', start);
-#else
         end = normalized.find('/', start);
-#endif
     } while (true);
 }
 

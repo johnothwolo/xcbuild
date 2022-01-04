@@ -9,6 +9,7 @@
 add_library(process
             Sources/Context.cpp
             Sources/DefaultContext.cpp
+            Sources/PDBContext.cpp
             Sources/MemoryContext.cpp
             Sources/Launcher.cpp
             Sources/DefaultLauncher.cpp
@@ -18,17 +19,10 @@ add_library(process
             Sources/MemoryUser.cpp
             )
 
-target_link_libraries(process PUBLIC ext util)
+target_link_libraries(process PUBLIC ext util plist)
 target_include_directories(process PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Headers")
 install(TARGETS process DESTINATION usr/lib)
 
 find_package(Threads REQUIRED)
 target_link_libraries(process PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
-if ("${CMAKE_SYSTEM_NAME}" MATCHES "Windows")
-  if ("${CMAKE_CXX_PLATFORM_ID}" STREQUAL "MinGW")
-    target_link_libraries(process PRIVATE userenv shell32 advapi32)
-  else ()
-    target_link_libraries(process PRIVATE UserEnv shell32 AdvAPI32)
-  endif ()
-endif ()

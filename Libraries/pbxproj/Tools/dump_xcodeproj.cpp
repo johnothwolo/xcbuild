@@ -245,7 +245,7 @@ CompleteDump(process::User const *user, Filesystem const *filesystem, PBX::Proje
                     {
                         auto BP = static_cast <PBX::HeadersBuildPhase *> (J.get());
                         printf("\t\t\tHeaders Build Phase:\n");
-                        printf("\t\t\t\tBuild Action Mask                      = %#x\n",
+                        printf("\t\t\t\tBuild Actions Mask                      = %#x\n",
                                 BP->buildActionMask());
                         printf("\t\t\t\tRun Only For Deployment Postprocessing = %s\n",
                                 BP->runOnlyForDeploymentPostprocessing() ? "YES" : "NO");
@@ -260,8 +260,8 @@ CompleteDump(process::User const *user, Filesystem const *filesystem, PBX::Proje
                 case PBX::BuildPhase::Type::Sources:
                     {
                         auto BP = static_cast <PBX::SourcesBuildPhase *> (J.get());
-                        printf("\t\t\tSources Build Phase:\n");
-                        printf("\t\t\t\tBuild Action Mask                      = %#x\n",
+                        printf("\t\t\tXref Build Phase:\n");
+                        printf("\t\t\t\tBuild Actions Mask                      = %#x\n",
                                 BP->buildActionMask());
                         printf("\t\t\t\tRun Only For Deployment Postprocessing = %s\n",
                                 BP->runOnlyForDeploymentPostprocessing() ? "YES" : "NO");
@@ -277,7 +277,7 @@ CompleteDump(process::User const *user, Filesystem const *filesystem, PBX::Proje
                     {
                         auto BP = static_cast <PBX::ResourcesBuildPhase *> (J.get());
                         printf("\t\t\tResources Build Phase:\n");
-                        printf("\t\t\t\tBuild Action Mask                      = %#x\n",
+                        printf("\t\t\t\tBuild Actions Mask                      = %#x\n",
                                 BP->buildActionMask());
                         printf("\t\t\t\tRun Only For Deployment Postprocessing = %s\n",
                                 BP->runOnlyForDeploymentPostprocessing() ? "YES" : "NO");
@@ -293,7 +293,7 @@ CompleteDump(process::User const *user, Filesystem const *filesystem, PBX::Proje
                     {
                         auto BP = static_cast <PBX::CopyFilesBuildPhase *> (J.get());
                         printf("\t\t\tCopy Files Build Phase:\n");
-                        printf("\t\t\t\tBuild Action Mask                      = %#x\n",
+                        printf("\t\t\t\tBuild Actions Mask                      = %#x\n",
                                 BP->buildActionMask());
                         printf("\t\t\t\tRun Only For Deployment Postprocessing = %s\n",
                                 BP->runOnlyForDeploymentPostprocessing() ? "YES" : "NO");
@@ -313,7 +313,7 @@ CompleteDump(process::User const *user, Filesystem const *filesystem, PBX::Proje
                     {
                         auto BP = static_cast <PBX::FrameworksBuildPhase *> (J.get());
                         printf("\t\t\tFrameworks Build Phase:\n");
-                        printf("\t\t\t\tBuild Action Mask                      = %#x\n",
+                        printf("\t\t\t\tBuild Actions Mask                      = %#x\n",
                                 BP->buildActionMask());
                         printf("\t\t\t\tRun Only For Deployment Postprocessing = %s\n",
                                 BP->runOnlyForDeploymentPostprocessing() ? "YES" : "NO");
@@ -329,7 +329,7 @@ CompleteDump(process::User const *user, Filesystem const *filesystem, PBX::Proje
                     {
                         auto BP = static_cast <PBX::ShellScriptBuildPhase *> (J.get());
                         printf("\t\t\tShell Script Build Phase:\n");
-                        printf("\t\t\t\tBuild Action Mask                      = %#x\n",
+                        printf("\t\t\t\tBuild Actions Mask                      = %#x\n",
                                 BP->buildActionMask());
                         printf("\t\t\t\tRun Only For Deployment Postprocessing = %s\n",
                                 BP->runOnlyForDeploymentPostprocessing() ? "YES" : "NO");
@@ -359,7 +359,7 @@ CompleteDump(process::User const *user, Filesystem const *filesystem, PBX::Proje
                     {
                         auto BP = static_cast <PBX::AppleScriptBuildPhase *> (J.get());
                         printf("\t\t\tApple Script Build Phase:\n");
-                        printf("\t\t\t\tBuild Action Mask                      = %#x\n",
+                        printf("\t\t\t\tBuild Actions Mask                      = %#x\n",
                                 BP->buildActionMask());
                         printf("\t\t\t\tRun Only For Deployment Postprocessing = %s\n",
                                 BP->runOnlyForDeploymentPostprocessing() ? "YES" : "NO");
@@ -379,7 +379,7 @@ CompleteDump(process::User const *user, Filesystem const *filesystem, PBX::Proje
                     {
                         auto BP = static_cast <PBX::RezBuildPhase *> (J.get());
                         printf("\t\t\tRez Build Phase:\n");
-                        printf("\t\t\t\tBuild Action Mask                      = %#x\n",
+                        printf("\t\t\t\tBuild Actions Mask                      = %#x\n",
                                 BP->buildActionMask());
                         printf("\t\t\t\tRun Only For Deployment Postprocessing = %s\n",
                                 BP->runOnlyForDeploymentPostprocessing() ? "YES" : "NO");

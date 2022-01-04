@@ -9,16 +9,10 @@
 #include <libutil/Relative.h>
 #include <libutil/Absolute.h>
 #include <libutil/Unix.h>
-#include <libutil/Windows.h>
 
 #include <algorithm>
-#include <cassert>
-
-#if _WIN32
-#include <cstring>
-#else
 #include <strings.h>
-#endif
+#include <cassert>
 
 namespace Path = libutil::Path;
 
@@ -191,9 +185,9 @@ parent() const
     size_t start;
     (void)Traits::IsAbsolute(_raw, &start);
 
-    auto begin = (_raw.size() > start && Path::Windows::IsSeparator(_raw.back()) ? std::next(_raw.rbegin()) : _raw.rbegin());
+    auto begin = (_raw.size() > start && Path::Unix::IsSeparator(_raw.back()) ? std::next(_raw.rbegin()) : _raw.rbegin());
     auto end = std::prev(_raw.rend(), start);
-    auto it = std::find_if(begin, end, &Path::Windows::IsSeparator);
+    auto it = std::find_if(begin, end, &Path::Unix::IsSeparator);
 
     if (it == end) {
         return Path::BaseRelative<Traits>(std::string(_raw.begin(), end.base()));
@@ -269,15 +263,10 @@ extension(std::string const &extension, bool insensitive) const
     std::string pathExtension = this->extension();
 
     if (insensitive) {
-#if _WIN32
-        return ::_stricmp(pathExtension.c_str(), extension.c_str()) == 0;
-#else
         return ::strcasecmp(pathExtension.c_str(), extension.c_str()) == 0;
-#endif
     } else {
         return pathExtension == extension;
     }
 }
 
 namespace libutil { namespace Path { template class BaseRelative<Unix>; } }
-namespace libutil { namespace Path { template class BaseRelative<Windows>; } }

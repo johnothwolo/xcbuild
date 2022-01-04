@@ -10,7 +10,6 @@
 #define __libutil_Relative_h
 
 #include <libutil/Unix.h>
-#include <libutil/Windows.h>
 
 #include <string>
 #include <ext/optional>
@@ -97,11 +96,7 @@ public:
     bool extension(std::string const &extension, bool insensitive = true) const;
 };
 
-#if _WIN32
-using Relative = BaseRelative<Windows>;
-#else
 using Relative = BaseRelative<Unix>;
-#endif
 
 }
 }

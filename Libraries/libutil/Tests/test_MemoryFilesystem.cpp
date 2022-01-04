@@ -414,12 +414,7 @@ TEST(MemoryFilesystem, ResolvePath)
     EXPECT_EQ(filesystem.resolvePath(filesystem.path("dir1")), filesystem.path("dir1"));
     EXPECT_EQ(filesystem.resolvePath(filesystem.path("dir1/")), filesystem.path("dir1"));
     EXPECT_EQ(filesystem.resolvePath(filesystem.path("dir1/..")), filesystem.path(""));
-#if _WIN32
-    EXPECT_EQ(filesystem.resolvePath(filesystem.path("dir1//file2")), filesystem.path("dir1\\file2"));
-    EXPECT_EQ(filesystem.resolvePath(filesystem.path("dir2/.././dir1/file2")), filesystem.path("dir1\\file2"));
-#else
     EXPECT_EQ(filesystem.resolvePath(filesystem.path("dir1//file2")), filesystem.path("dir1/file2"));
     EXPECT_EQ(filesystem.resolvePath(filesystem.path("dir2/.././dir1/file2")), filesystem.path("dir1/file2"));
-#endif
 }
 

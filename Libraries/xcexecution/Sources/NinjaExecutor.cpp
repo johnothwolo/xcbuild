@@ -533,7 +533,7 @@ buildAction(
      */
     ninja::Writer writer;
     writer.comment("xcbuild ninja");
-    writer.comment("Action: " + buildContext.action());
+    writer.comment("Actions: " + buildContext.action());
     if (buildContext.workspaceContext().workspace() != nullptr) {
         writer.comment("Workspace: " + buildContext.workspaceContext().workspace()->projectFile());
     } else if (buildContext.workspaceContext().project() != nullptr) {

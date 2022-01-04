@@ -9,7 +9,6 @@
 #include <libutil/Absolute.h>
 #include <libutil/Relative.h>
 #include <libutil/Unix.h>
-#include <libutil/Windows.h>
 
 #include <algorithm>
 
@@ -78,4 +77,3 @@ from(Path::BaseAbsolute<Traits> const &from) const
 }
 
 namespace libutil { namespace Path { template class BaseAbsolute<Unix>; } }
-namespace libutil { namespace Path { template class BaseAbsolute<Windows>; } }

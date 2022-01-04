@@ -305,9 +305,9 @@ NextAdjustment(Options::Adjustment *adjustment, Options::Adjustment::Type type, 
     } else if (*arg == "-data") {
         object = plist::Data::New(*value);
     } else if (*arg == "-xml") {
-        std::pair<bool, std::string> result = SanitizeXMLFormat(&*value);
-        if (!result.first) {
-            return result;
+        std::pair<bool, std::string> _result = SanitizeXMLFormat(&*value);
+        if (!_result.first) {
+            return _result;
         }
 
         std::vector<uint8_t> contents = std::vector<uint8_t>(value->begin(), value->end());
@@ -700,7 +700,7 @@ main(int argc, char **argv)
 
         /* Actions applied to each input file separately. */
         for (std::string const &file : options.inputs()) {
-            std::pair<bool, std::vector<uint8_t>> result = Read(&filesystem, file);
+            std::pair<bool, std::vector<uint8_t>> _result = Read(&filesystem, file);
             if (!result.first) {
                 fprintf(stderr, "error: unable to read %s\n", file.c_str());
                 success = false;
@@ -711,8 +711,8 @@ main(int argc, char **argv)
             ext::optional<Options::Format> format;
             std::unique_ptr<plist::Object> root;
 
-            if (auto any = plist::Format::Any::Identify(result.second)) {
-                auto deserialize = plist::Format::Any::Deserialize(result.second, *any);
+            if (auto any = plist::Format::Any::Identify(_result.second)) {
+                auto deserialize = plist::Format::Any::Deserialize(_result.second, *any);
                 if (deserialize.first != nullptr) {
                     root = std::move(deserialize.first);
                     format = Options::Format(*any);
@@ -723,7 +723,7 @@ main(int argc, char **argv)
                 }
             } else {
                 auto json = plist::Format::JSON::Create();
-                auto deserialize = plist::Format::JSON::Deserialize(result.second, json);
+                auto deserialize = plist::Format::JSON::Deserialize(_result.second, json);
                 if (deserialize.first != nullptr) {
                     root = std::move(deserialize.first);
                     format = Options::Format(json);
@@ -734,7 +734,7 @@ main(int argc, char **argv)
                 }
             }
 
-            /* Perform the sepcific action. */
+            /* Perform the specific action. */
             if (modify) {
                 success &= Modify(&filesystem, options, file, std::move(root), *format);
             } else if (options.print()) {

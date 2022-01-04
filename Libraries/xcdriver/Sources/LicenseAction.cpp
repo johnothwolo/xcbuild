@@ -29,16 +29,6 @@ static char const LICENSE[] = "<unavailable>";
 
 using xcdriver::LicenseAction;
 
-LicenseAction::
-LicenseAction()
-{
-}
-
-LicenseAction::
-~LicenseAction()
-{
-}
-
 int LicenseAction::
 Run()
 {
@@ -47,3 +37,6 @@ Run()
 
     return 0;
 }
+
+LicenseAction::LicenseAction() = default;
+LicenseAction::~LicenseAction() = default;

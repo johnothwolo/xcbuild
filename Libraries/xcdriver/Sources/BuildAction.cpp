@@ -18,9 +18,7 @@
 #include <libutil/Filesystem.h>
 #include <process/Context.h>
 
-#if !_WIN32
 #include <unistd.h>
-#endif
 
 using xcdriver::BuildAction;
 using xcdriver::Options;
@@ -40,19 +38,13 @@ static std::shared_ptr<xcformatter::Formatter>
 CreateFormatter(ext::optional<std::string> const &formatter)
 {
     if (!formatter || *formatter == "default") {
-#if _WIN32
-        // TODO: Support color output on Windows.
-        bool color = false;
-#else
         /* Only use color if attached to a terminal. */
         bool color = isatty(fileno(stdout));
-#endif
-
-        auto formatter = xcformatter::DefaultFormatter::Create(color);
-        return std::static_pointer_cast<xcformatter::Formatter>(formatter);
+        auto _formatter = xcformatter::DefaultFormatter::Create(color);
+        return std::static_pointer_cast<xcformatter::Formatter>(_formatter);
     } else if (*formatter == "null") {
-        auto formatter = xcformatter::NullFormatter::Create();
-        return std::static_pointer_cast<xcformatter::Formatter>(formatter);
+        auto _formatter = xcformatter::NullFormatter::Create();
+        return std::static_pointer_cast<xcformatter::Formatter>(_formatter);
     }
 
     return nullptr;
@@ -67,11 +59,11 @@ CreateExecutor(
 {
     if (!executor || *executor == "simple") {
         auto registry = builtin::Registry::Default();
-        auto executor = xcexecution::SimpleExecutor::Create(formatter, dryRun, registry);
-        return libutil::static_unique_pointer_cast<xcexecution::Executor>(std::move(executor));
+        auto _executor = xcexecution::SimpleExecutor::Create(formatter, dryRun, registry);
+        return libutil::static_unique_pointer_cast<xcexecution::Executor>(std::move(_executor));
     } else if (*executor == "ninja") {
-        auto executor = xcexecution::NinjaExecutor::Create(formatter, dryRun, generate);
-        return libutil::static_unique_pointer_cast<xcexecution::Executor>(std::move(executor));
+        auto _executor = xcexecution::NinjaExecutor::Create(formatter, dryRun, generate);
+        return libutil::static_unique_pointer_cast<xcexecution::Executor>(std::move(_executor));
     }
 
     return nullptr;

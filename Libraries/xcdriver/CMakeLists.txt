@@ -39,15 +39,11 @@ target_link_libraries(xcbuild xcdriver)
 install(TARGETS xcbuild DESTINATION usr/bin)
 
 set(ALIAS_PATH "$<TARGET_FILE_DIR:xcbuild>/xcodebuild${CMAKE_EXECUTABLE_SUFFIX}")
-if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
-  add_custom_command(TARGET xcbuild
-                     COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:xcbuild>" "${ALIAS_PATH}"
-                     DEPENDS "$<TARGET_FILE:xcbuild>")
-else ()
-  add_custom_command(TARGET xcbuild
-                     COMMAND "${CMAKE_COMMAND}" -E create_symlink "$<TARGET_FILE_NAME:xcbuild>" "${ALIAS_PATH}"
-                     DEPENDS "$<TARGET_FILE:xcbuild>")
-endif ()
+
+add_custom_command(TARGET xcbuild
+                   COMMAND "${CMAKE_COMMAND}" -E create_symlink "$<TARGET_FILE_NAME:xcbuild>" "${ALIAS_PATH}"
+                   DEPENDS "$<TARGET_FILE:xcbuild>")
+
 install(FILES "${ALIAS_PATH}" DESTINATION usr/bin)
 
 if (BUILD_TESTING)

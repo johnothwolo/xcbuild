@@ -101,7 +101,7 @@ Create(
     /*
      * Determine product & temp resources directories. This varies based on localization;
      * the point is so that "copy" type tools can go into the resources folder even when
-     * accidentally inserted into Sources build phases.
+     * accidentally inserted into xref build phases.
      */
     std::string productResourcesDirectory = environment.resolve("TARGET_BUILD_DIR") + "/" + environment.resolve("UNLOCALIZED_RESOURCES_FOLDER_PATH");
     std::string tempResourcesDirectory = environment.resolve("TARGET_TEMP_DIR");

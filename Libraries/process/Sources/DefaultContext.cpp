@@ -14,11 +14,6 @@
 #include <unordered_set>
 #include <cstring>
 #include <cassert>
-
-#if _WIN32
-#include <windows.h>
-#include <userenv.h>
-#else
 #include <unistd.h>
 #include <sys/select.h>
 #include <errno.h>
@@ -26,7 +21,6 @@
 #include <glob.h>
 #else
 #include <wordexp.h>
-#endif
 #endif
 
 #if defined(__APPLE__)
@@ -43,33 +37,7 @@
 #include <sys/sysctl.h>
 #endif
 
-#if !_WIN32
 extern "C" char **environ;
-#endif
-
-#if _WIN32
-using WideString = std::basic_string<std::remove_const<std::remove_pointer<LPCWSTR>::type>::type>;
-
-static std::string
-WideStringToString(WideString const &str)
-{
-    int size = WideCharToMultiByte(CP_UTF8, 0, str.data(), (int)str.size(), NULL, 0, NULL, NULL);
-    std::string multi = std::string();
-    multi.resize(size);
-    WideCharToMultiByte(CP_UTF8, 0, str.data(), (int)str.size(), &multi[0], size, NULL, NULL);
-    return multi;
-}
-
-static WideString
-StringToWideString(std::string const &str)
-{
-    int size = MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.size(), NULL, 0);
-    WideString wide = WideString();
-    wide.resize(size);
-    MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.size(), &wide[0], size);
-    return wide;
-}
-#endif
 
 using process::DefaultContext;
 using libutil::FSUtil;
@@ -93,23 +61,6 @@ currentDirectory() const
     static std::once_flag flag;
     std::call_once(flag, []{
         std::string path;
-
-#if _WIN32
-        /* Length includes NUL terminator. */
-        DWORD length = GetCurrentDirectoryW(0, NULL);
-        if (length == 0) {
-            abort();
-        }
-
-        auto buffer = WideString();
-        buffer.resize(length - 1);
-        /* Size of the buffer should incremented to account for ending null byte */
-        if (GetCurrentDirectoryW(buffer.size() + sizeof(decltype(buffer)::value_type), &buffer[0]) == 0) {
-            abort();
-        }
-
-        path = WideStringToString(buffer);
-#else
         for (size_t size = PATH_MAX; true; size *= 2) {
             std::string current = std::string();
             current.resize(size);
@@ -125,8 +76,6 @@ currentDirectory() const
                 abort();
             }
         }
-#endif
-
         directory = new std::string(path);
     });
 
@@ -183,26 +132,7 @@ executablePath() const
     std::call_once(flag, []{
         std::string absolutePath;
 
-#if _WIN32
-        for (size_t size = MAX_PATH; true; size *= 2) {
-            auto buffer = WideString();
-            buffer.resize(size);
-
-            DWORD ret = GetModuleFileNameW(NULL, &buffer[0], buffer.size());
-            if (ret == 0) {
-                /* Failure. */
-                abort();
-            } else if (ret != size) {
-                /* Success. */
-                buffer = WideString(buffer.c_str());
-                absolutePath = WideStringToString(buffer);
-                break;
-            } else {
-                /* Needs more space. */
-                assert(GetLastError() == ERROR_INSUFFICIENT_BUFFER);
-            }
-        }
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
         uint32_t size = 0;
         if (_NSGetExecutablePath(NULL, &size) != -1) {
             abort();
@@ -259,24 +189,7 @@ commandLineArguments() const
 
     static std::once_flag flag;
     std::call_once(flag, []{
-#if _WIN32
-        LPCWSTR commandLine = GetCommandLineW();
-
-        int commandLineArgumentCount;
-        LPWSTR *commandLineArgumentValues = CommandLineToArgvW(commandLine, &commandLineArgumentCount);
-        if (commandLineArgumentValues == nullptr) {
-            abort();
-        }
-
-        std::vector<std::string> args;
-        for (size_t i = 1; i < static_cast<size_t>(commandLineArgumentCount); i++) {
-            auto buffer = WideString(commandLineArgumentValues[i]);
-            args.push_back(WideStringToString(buffer));
-        }
-        arguments = new std::vector<std::string>(args);
-
-        LocalFree(commandLineArgumentValues);
-#elif defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
         arguments = new std::vector<std::string>(commandLineArgumentValues + 1, commandLineArgumentValues + commandLineArgumentCount);
 #else
 #error Unsupported platform.
@@ -289,25 +202,11 @@ commandLineArguments() const
 ext::optional<std::string> DefaultContext::
 environmentVariable(std::string const &variable) const
 {
-#if _WIN32
-    auto name = StringToWideString(variable);
-
-    auto buffer = WideString();
-    buffer.resize(32768);
-    if (GetEnvironmentVariableW(name.data(), &buffer[0], buffer.size()) == 0) {
-        assert(GetLastError() == ERROR_ENVVAR_NOT_FOUND);
-        return ext::nullopt;
-    }
-
-    buffer = WideString(buffer.c_str());
-    return WideStringToString(buffer);
-#else
     if (char *value = ::getenv(variable.c_str())) {
         return std::string(value);
     } else {
         return ext::nullopt;
     }
-#endif
 }
 
 std::unordered_map<std::string, std::string> const &DefaultContext::
@@ -318,32 +217,6 @@ environmentVariables() const
     static std::once_flag flag;
     std::call_once(flag, []{
         std::unordered_map<std::string, std::string> values;
-
-#if _WIN32
-        LPWCH variables = GetEnvironmentStringsW();
-        if (variables == NULL) {
-            abort();
-        }
-
-        LPCWSTR current = variables;
-        size_t length = wcslen(current);
-        while (length != 0) {
-            auto buffer = WideString(current, current + length);
-            std::string variable = WideStringToString(buffer);
-
-            std::string::size_type offset = variable.find('=');
-            std::string name = variable.substr(0, offset);
-            std::string value = variable.substr(offset + 1);
-            values.insert({ name, value });
-
-            current += length + 1;
-            length = wcslen(current);
-        }
-
-        if (FreeEnvironmentStringsW(variables) == 0) {
-            abort();
-        }
-#else
         for (char **current = environ; *current; current++) {
             std::string variable = *current;
 
@@ -352,8 +225,6 @@ environmentVariables() const
             std::string value = variable.substr(offset + 1);
             values.insert({ name, value });
         }
-#endif
-
         environment = new std::unordered_map<std::string, std::string>(values);
     });
 
@@ -364,30 +235,7 @@ ext::optional<std::string> const DefaultContext::
 shellExpand(std::string const &s) const
 {
     std::string expandedString = s;
-#if _WIN32
-    auto wideS = StringToWideString(expandedString);
-    auto buffer = WideString();
-
-    DWORD bufferSize = 32768;
-    bool haveExpandedString = false;
-
-    while (haveExpandedString) {
-        buffer.resize(bufferSize);
-        DWORD neededSize = ExpandEnvironmentStringsW(wideS.data(), &buffer[0], bufferSize);
-
-        if (neededSize > bufferSize) {
-            bufferSize = neededSize;
-        } else if (neededSize == 0) {
-            /* Documentation doesn't define what errors GetLastError() can return,
-               so don't bother asserting its value. */
-            return ext::nullopt;
-        } else {
-            haveExpandedString = true;
-        }
-    }
-    expandedString = WideStringToString(buffer);
-
-#elif __OpenBSD__
+#if __OpenBSD__
     glob_t result;
     if (glob(s.c_str(), 0, NULL, &result) == 0) {
         if (result.gl_pathc != 1) {

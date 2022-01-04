@@ -10,6 +10,7 @@ project(xcbuild C CXX)
 
 cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0054 NEW)
+set(CMAKE_CXX_STANDARD 17)
 
 set(BUILD_SHARED_LIBS True CACHE BOOL "Build shared libraries." FORCE)
 

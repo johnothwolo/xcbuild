@@ -39,7 +39,6 @@ public:
     enum class LineEnding : uint32_t {
         Unix = 0,
         MacOS = 1,
-        Windows = 2,
     };
 
 public:

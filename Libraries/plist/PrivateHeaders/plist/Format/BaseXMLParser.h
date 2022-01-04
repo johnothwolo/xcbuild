@@ -14,26 +14,14 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
-
-#if _WIN32
-#define CINTERFACE
-#define COBJMACROS
-#include <ole2.h>
-#include <xmllite.h>
-#else
 #include <libxml/xmlreader.h>
-#endif
 
 namespace plist {
 namespace Format {
 
 class BaseXMLParser {
 private:
-#if _WIN32
-    IXmlReader        *_reader;
-#else
     ::xmlTextReaderPtr _parser;
-#endif
 
 private:
     bool               _errored;

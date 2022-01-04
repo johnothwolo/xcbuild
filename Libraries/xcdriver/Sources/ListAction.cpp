@@ -18,16 +18,6 @@ using xcdriver::ListAction;
 using xcdriver::Options;
 using libutil::Filesystem;
 
-ListAction::
-ListAction()
-{
-}
-
-ListAction::
-~ListAction()
-{
-}
-
 int ListAction::
 Run(process::User const *user, process::Context const *processContext, Filesystem const *filesystem, Options const &options)
 {
@@ -113,3 +103,6 @@ Run(process::User const *user, process::Context const *processContext, Filesyste
 
     return 0;
 }
+
+ListAction::ListAction() = default;
+ListAction::~ListAction() = default;
