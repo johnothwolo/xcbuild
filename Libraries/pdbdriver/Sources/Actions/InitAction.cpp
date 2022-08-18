@@ -88,7 +88,7 @@ static int createDistImage(process::Launcher *launcher,
         std::string targetSystemImage;
 //        std::stringstream argStream;
         
-        targetSystemImage = ctx->PDBRoot + std::string("/.pdbuild/").append(dmgfile_name_g);
+        targetSystemImage = ctx->getPdBuildRootHiddenDirPath() + dmgfile_name_g;
         // check if there's an existing image.
         if (filesystem->exists(targetSystemImage)) {
           std::cout << "target image for " << osBuild << " already exists" << std::endl;
@@ -117,7 +117,7 @@ static int createDistImage(process::Launcher *launcher,
         // create dmg file
         MemoryContext hdiutil = process::MemoryContext(
             *executable,
-            ctx->PDBRoot+"/.pdbuild",
+            ctx->getPdBuildRootHiddenDirPath(),
             arguments,
             ctx->environmentVariables());
         ext::optional<int> exitCode = launcher->launch(filesystem, &hdiutil);
@@ -129,9 +129,9 @@ static int createDistImage(process::Launcher *launcher,
         // create symlink
         return filesystem->writeSymbolicLink(
             std::string("/Volumes/").append(volname),
-            ctx->PDBRoot + std::string("/DistributionImage"), false);
+            ctx->getDestinationRootPath(), false);
     } else { // -nodmg
-        std::string path = ctx->PDBRoot + std::string("/DistributionImage");
+        std::string path = ctx->getDestinationRootPath();
         if (filesystem->exists(path)) {
           std::cout << "[Warning!]: DistributionImage directory already exists";
           return true;
@@ -140,7 +140,7 @@ static int createDistImage(process::Launcher *launcher,
     }
 }
 
-std::shared_ptr<plist::Object>
+plist::Object*
 fetchInitPlistFile(const process::PDBContext *ctx,
                    const Filesystem *filesystem,
                    const std::string &plistPath)
@@ -164,14 +164,15 @@ fetchInitPlistFile(const process::PDBContext *ctx,
       std::cerr << "plist doesn't exist at given path\n";
       return nullptr;
     }
-    return ctx->openPlist(filesystem, plistPath);
+    ctx->openPlist(filesystem, plistPath);
+    return ctx->getPlistRootObject();
   }
 }
 
 static std::unique_ptr<std::vector<uint8_t>>
-packPlist(std::shared_ptr<plist::Object> *object){
+packPlist(plist::Object *object){
   plist::Format::XML out = plist::Format::XML::Create( plist::Format::Encoding::UTF8);
-  auto serialize = plist::Format::XML::Serialize(object->get(), out);
+  auto serialize = plist::Format::XML::Serialize(object, out);
   if (serialize.first == nullptr) {
     fprintf(stderr, "error: %s\n", serialize.second.c_str());
     return nullptr;
@@ -184,7 +185,7 @@ static bool savePlistFile(
     const process::PDBContext *ctx,
     libutil::Filesystem *filesystem,
     const std::string &plistDestPath,
-    std::shared_ptr<plist::Object> *object){
+    plist::Object *object){
   if (!ctx->Write(filesystem, *packPlist(object), plistDestPath)) {
     fprintf(stderr, "error: unable to write\n");
     return false;
@@ -240,7 +241,7 @@ InitAction::Run(process::User const *user,
                 << std::endl;
 
     // create directories if not created
-    if(!createBuildRootDirectories(context->PDBRoot, filesystem)){
+    if(!createBuildRootDirectories(context->getPdBuildRoot(), filesystem)){
         if (errno == EEXIST)
             printf("Warning: pdbuild may already be initialized in this directory.\n");
         else {
@@ -254,7 +255,7 @@ InitAction::Run(process::User const *user,
     if (root == nullptr)
       return 0;
 
-    auto rootDict = plist::CastTo<plist::Dictionary>(root.get());
+    auto rootDict = plist::CastTo<plist::Dictionary>(root);
 
     osBuild = rootDict->value<plist::String>("build")->value();
 //    std::cout << osBuild << std::endl;
@@ -264,19 +265,17 @@ InitAction::Run(process::User const *user,
       return errno;
 
     // TODO: error checking
-    SetBuildPreference(context->PDBRoot, osBuild);
+    SetBuildPreference(context->getPdBuildRoot(), osBuild);
 
-    if (!savePlistFile(context, filesystem,context->PDBRoot+
-                                                "/.pdbuild/"+
-                                                FSUtil::GetBaseName(*plistArg), &root))
+    if (!savePlistFile(context, filesystem,context->getPdBuildRootHiddenDirPath()+FSUtil::GetBaseName(*plistArg), root))
     {
       std::cerr << "failed to save plist file\n";
       return 0;
     }
 
     // TODO: error checking
-    SetPlistFilePreference(context->PDBRoot,
-                           context->PDBRoot+"/.pdbuild/"+FSUtil::GetBaseName(*plistArg),
+    SetPlistFilePreference(context->getPdBuildRoot(),
+                           context->getPdBuildRootHiddenDirPath()+FSUtil::GetBaseName(*plistArg),
                            "");
 
     // we're almost done. create xref.db.

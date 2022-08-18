@@ -42,21 +42,16 @@ ListAction::Run(process::User const *user,
                 libutil::Filesystem *filesystem, Options const &options)
 
 {
-  int ret = 0;
-  auto root = processContext->openPlist(filesystem);
+  plist::Dictionary *projects;
+  processContext->openPlist(filesystem); // open plist
 
-  if (root == nullptr)
-    return ret;
-
-  auto rootDict = plist::CastTo<plist::Dictionary>(root.get());
-  auto projects = rootDict->value<plist::Dictionary>("projects");
-
+  projects = processContext->getAllProjects();
   std::cout << "Projects:" << std::endl;
-  for (const auto & project : *projects) {
-    std::cout << "         " << project << std::endl;
-  }
 
-  return ret;
+  for (const auto & project : *projects)
+    std::cout << "         " << project << std::endl;
+
+  return 0;
 }
 
 ListAction::ListAction() = default;

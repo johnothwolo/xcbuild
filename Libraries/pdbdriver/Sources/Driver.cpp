@@ -47,10 +47,8 @@ Run(process::User const *user, process::PDBContext const *processContext, proces
     }
 
     // current directory is buildroot by default.
-    // Environment var PDB_BUILDROOT overrides default buildroot which is CWD/pwd.
-    ((process::PDBContext*)processContext)->PDBRoot =
-        processContext->environmentVariable("PDB_BUILDROOT").value_or(processContext->currentDirectory());
-    
+    ((process::PDBContext*)processContext)->setPdBuildRoot(((process::PDBContext*)processContext));
+
     Action::Type action = Action::Determine(options);
     
     switch (action) {

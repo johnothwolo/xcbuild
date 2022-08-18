@@ -1,0 +1,11 @@
+Download ctools, gnumake, etc... in order to build a complete PureDarwin sdk.
+Afterwards try to make libfirehose and other headers, then install them into PureDarwinSDK.
+If done right, we won't need to look into the host OS.
+
+Oh, and reinstate the pdsdk variable that points to puredarwinsdk.
+If booted into PureDarwin, pdbuild expects it in /Library/Developer/PureDarwinSDK. Implement that!
+If on macOS, pdsdk should be specified in an environment variable.
+
+Print the pre-build output like darwinbuild did.
+Consider using xcpretty to make the build output look neater
+Maybe silence the build output, then create a setting/switch to print build info or not.

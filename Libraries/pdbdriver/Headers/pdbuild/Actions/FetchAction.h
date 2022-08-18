@@ -9,6 +9,8 @@
 #ifndef pdbuild_FetchAction_h
 #define pdbuild_FetchAction_h
 
+#include <string>
+
 namespace libutil { class Filesystem; }
 namespace process { class PDBContext; }
 namespace process { class Launcher; }

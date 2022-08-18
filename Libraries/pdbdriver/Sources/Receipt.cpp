@@ -50,7 +50,7 @@ Receipt::Receipt(process::PDBContext *context,
 : m_type(type), m_options(options)
 {
     std::string receipt = type == HEADERS ? options.project().value_or("") + "hdrs" : options.project().value_or("");
-    if (filesystem->exists(context->PDBRoot+RECEIPTDIR+receipt))
+    if (filesystem->exists(context->getDestinationReceiptsPath()+receipt))
         m_onDisk = true;
 }
 
@@ -94,19 +94,19 @@ Receipt::createOnDisk(process::PDBContext *context,
   std::string receiptName = m_type == HEADERS ? m_options.project().value_or("") + "hdrs"
                                           : m_options.project().value_or("");
   // double check receipts dir
-  if(!filesystem->exists(context->PDBRoot+RECEIPTDIR))
-    filesystem->createDirectory(context->PDBRoot+RECEIPTDIR, true);
+  if(!filesystem->exists(context->getDestinationReceiptsPath()))
+    filesystem->createDirectory(context->getDestinationReceiptsPath(), true);
 
-  if (filesystem->exists(context->PDBRoot+RECEIPTDIR+receiptName)){
+  if (filesystem->exists(context->getDestinationReceiptsPath()+receiptName)){
     m_onDisk = true;
     return EEXIST;
   }
-  auto buildRoot = context->PDBRoot;
+  auto buildRoot = context->getPdBuildRoot();
   // get db path
   auto dbpath = buildRoot + "/.pdbuild/xref.db";
 
   // get build number
-  auto build = context->getBuild(filesystem);
+  auto build = context->getOsBuild(filesystem);
 
   // verify db path
   if(!filesystem->exists(dbpath)) {
@@ -121,7 +121,7 @@ Receipt::createOnDisk(process::PDBContext *context,
   // get plugin data
   auto pluginData = ((plugin::Plugin<std::vector<std::string>>*)plugin)->getData();
   std::string shaFilename = pluginData[0];
-  std::ofstream fstream(context->PDBRoot+RECEIPTDIR+shaFilename, std::ios::out);
+  std::ofstream fstream(context->getDestinationReceiptsPath()+shaFilename, std::ios::out);
 
   if(!fstream.is_open())
     return -errno;

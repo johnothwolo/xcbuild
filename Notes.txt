@@ -1,0 +1,8 @@
+Added new option for xcodebuild projects, called "xcodeBuildSettings". This appends user-specified build settings.
+
+We know what type a project is from the "productBundleType" property, which matches "CFBundlePackageType" build property
+This allows us to specify include paths in the right order, so that the kexts build.
+However, this is only possible if and only if the "target" plist property is specified.
+We can't really modify xcodeBuildSettings for every target in an "all" build.
+Default include paths for kexts in pdbuild are system.famework and kernel.frameowrk
+

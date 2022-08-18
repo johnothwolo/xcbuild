@@ -9,6 +9,8 @@
 #ifndef pdbuild_BuildAction_h
 #define pdbuild_BuildAction_h
 
+#include <string>
+
 namespace libutil { class Filesystem; }
 namespace process { class PDBContext; }
 namespace process { class Launcher; }
@@ -19,6 +21,16 @@ namespace pdbuild {
 class Options;
 
 class BuildAction {
+public:
+  class BuildTool {
+  public:
+    static const std::string Invalid;
+    static const std::string Xcode;
+    static const std::string Makefile;
+    static const std::string CMake;
+    static const std::string Ninja;
+  };
+
 private:
     BuildAction();
     ~BuildAction();

@@ -6,39 +6,22 @@
  LICENSE file in the root directory of this source tree.
  */
 
-#include <pdbuild/Action.h>
 #include <pdbuild/Actions/FetchAction.h>
 #include <pdbuild/Options.h>
-#include <pdbuild/Usage.h>
+#include <pdbuild/Project.h>
 
-#include <libutil/Base.h>
 #include <libutil/FSUtil.h>
-#include <libutil/Filesystem.h>
+#include <libutil/DefaultFilesystem.h>
 #include <process/PDBContext.h>
 #include <process/MemoryContext.h>
 #include <process/Launcher.h>
 
 #include <plist/Array.h>
-#include <plist/Boolean.h>
-#include <plist/Data.h>
-#include <plist/Date.h>
 #include <plist/Dictionary.h>
-#include <plist/Integer.h>
-#include <plist/Real.h>
 #include <plist/String.h>
 #include <plist/Object.h>
-#include <plist/Format/Format.h>
-#include <plist/Format/Any.h>
-#include <plist/Format/XML.h>
-#include <plist/Format/JSON.h>
-
-#include <unistd.h>
 #include <vector>
 #include <cerrno>
-#include <iostream>
-#include <regex>
-#include <sys/stat.h>
-#include <dirent.h>
 
 using pdbuild::FetchAction;
 using pdbuild::Options;
@@ -53,6 +36,24 @@ const std::string FetchAction::SourceHost::ArchiveUrl = "archive";
 const std::string FetchAction::SourceHost::Apple = "apple";
 const std::string FetchAction::SourceHost::Local = "local";
 
+using SourceHost = pdbuild::FetchAction::SourceHost;
+
+
+// Only remote source check archive. Maybe switch Local source to archive-only?
+[[maybe_unused]]
+static bool CheckProjectArchive(const std::string& projectName, process::PDBContext *processContext, Filesystem *filesystem) {
+  // check if an archive containing project name exists.
+  return filesystem->readDirectory(processContext->getSourceCachePath(), false, [&projectName](const std::string &name){
+    auto found = name.find('.');
+    auto filename = name.substr(0, found == std::string::npos ? name.size(): found - 1);
+    // only set once, in case we come across 2 or all types
+    if (filename == projectName){
+      return true;
+    }
+    return false;
+  });
+}
+
 static int
 DownloadGithubSource(
     const std::string &repo,
@@ -63,9 +64,11 @@ DownloadGithubSource(
 
 static int
 DownloadAppleSource(
-    const std::string &projectName,
-    const std::string &projectVersion,
-    const std::string &destArchiveName) {
+    pdbuild::Project *project
+) {
+  std::string projectName;
+  std::string projectVersion;
+  std::string destArchiveName;
   return 0;
 }
 
@@ -80,24 +83,69 @@ DownloadLocalSource(
     const process::PDBContext *context,
     Filesystem *filesystem,
     const std::string &repo, // local directory holding the archive
-    const std::string &destArchiveName,
+    pdbuild::Project *project,
     std::string &dstCacheFile) {
+  std::string destArchiveName = project->getProjectNameAndVersion();
 //  auto subst = repo.substr(0, 8);
 //  if (subst != "file:///") context->abort("source_site mismatch");
 //  std::string path = &repo.at(7);
+  std::string path = repo;
 
-  return filesystem->readDirectory(repo, false, [&filesystem, &repo, &dstCacheFile, &destArchiveName, &context](std::string const &name) {
-    std::string withoutExtension = FSUtil::GetBaseNameWithoutExtension(FSUtil::GetBaseNameWithoutExtension(name));// for ".tar.gz", etc files
-    std::string cacheFile = FSUtil::NormalizePath(context->PDBRoot+"/SourceCache/"+name);
-    if (destArchiveName == withoutExtension) {
-      if (filesystem->exists(dstCacheFile)) return true;
-      if (!filesystem->copyFile(FSUtil::NormalizePath(repo + "/" + name), cacheFile))
-        context->abort("Failed to copy file");
-      dstCacheFile = cacheFile;
+  return filesystem->readDirectory(path, false, [&filesystem, &path, &dstCacheFile, &destArchiveName, &context](std::string const &name) {
+    long dot = -1;
+    if((dot = (long)name.find(".tar.gz")) >= 0 ||
+        (dot = (long)name.find(".tar.xz")) >= 0 ||
+        (dot = (long)name.find(".tar.bz2")) >= 0 ||
+        (dot = (long)name.find(".bz2")) >= 0 ||
+        (dot = (long)name.find(".xz")) >= 0 ||
+        (dot = (long)name.find(".gz")) >= 0 ||
+        (dot = (long)name.find(".7z")) >= 0 ||
+        (dot = (long)name.find(".zip")) >= 0)
+    {
+      std::string withoutExtension = name.substr(0, dot == std::string::npos ? name.size() : dot);// for ".tar.gz", etc files
+      std::string cacheFile = FSUtil::NormalizePath(context->getSourceCachePath() + name);
+      if (destArchiveName == withoutExtension) {
+        if (filesystem->exists(cacheFile)) {
+          dstCacheFile = cacheFile;
+          return true; // if source exists, don't copy anything
+        }
+        if (!filesystem->copyFile(FSUtil::NormalizePath(path + "/" + name), cacheFile))
+          context->abort("Failed to copy file");
+        dstCacheFile = cacheFile;
+        return true;
+      }
     }
-    return true;
+    return false; // if we find nothing return false
   });
 }
+
+static int
+ProcessSourceSite(
+    const process::PDBContext *context,
+    Filesystem *filesystem,
+    plist::Dictionary *sourceSite,
+    pdbuild::Project *project,
+    std::string &archivePath)
+{
+  // check the host, then download
+  auto host = sourceSite->value<plist::String>("host");
+  if (host == nullptr)
+    context->abort("Unsupported project source");
+
+  if (host->value() == SourceHost::Github) {
+    auto repo = sourceSite->value<plist::String>("repo")->value();
+    return DownloadGithubSource(repo, project->getProjectNameAndVersion());
+  } else if (host->value() == SourceHost::ArchiveUrl) {
+    auto repo = sourceSite->value<plist::String>("url")->value();
+    return DownloadUrlSource(repo, project->getProjectNameAndVersion());
+  } else if (host->value() == SourceHost::Apple) {
+    return DownloadAppleSource(project);
+  } else if (host->value() == SourceHost::Local) {
+    auto repo = sourceSite->value<plist::String>("url")->value();
+    return !DownloadLocalSource(context, filesystem, repo, project, archivePath);
+  } else return -1;
+}
+
 
 [[maybe_unused]]
 static int
@@ -105,31 +153,43 @@ ExtractSource(
     const process::PDBContext *ctx,
     process::Launcher *launcher,
     libutil::Filesystem *filesystem,
-    const std::string &archiveSrc, const std::string &destDir)
+    const std::string &archiveSrc,
+    const std::string &projectDirName)
 {
+  auto destDir = ctx->getDestinationSourcesPath();
   if(!filesystem->exists(archiveSrc))
     ctx->abort("\""+archiveSrc + "\" doesn't exist");
 
+  if(filesystem->exists(destDir+"/"+projectDirName))
+    return 0;
+
   // construct args
-  std::string util = "(null)";
+  std::string archiveUtil = "(null)";
   std::vector<std::string> arguments;
 
-  auto extension = FSUtil::GetFileExtension(archiveSrc);
+  if ((long)archiveSrc.find(".tar") >= 0){
+    archiveUtil = "tar";
+    if ((long)archiveSrc.find(".gz") >= 0) {
+GZ:  arguments.emplace_back("-xzf");
+    } else if ((long)archiveSrc.find(".bz2") >= 0) {
+BZ2:   arguments.emplace_back("-xyf");
+    } else if ((long)archiveSrc.find(".xz") >= 0) {
+XZ:   arguments.emplace_back("-xJf");
+    }
+    arguments.push_back(archiveSrc);
+    arguments.emplace_back("-C");
+    arguments.push_back(destDir);
+  } else if ((long)archiveSrc.find(".bz2") >= 0){
+    goto BZ2;
+  } else if ((long)archiveSrc.find(".xz") >= 0){
+    goto XZ;
+  } else if ((long)archiveSrc.find(".gz") >= 0){
+    goto GZ;
+  } /* else if ((extensionDot = (long)archiveSrc.find(".7z")) >= 0){
 
-  if(extension == "gz"){
-    util = "tar";
-    arguments.emplace_back("-xvf");
-    arguments.push_back(archiveSrc);
-    arguments.emplace_back("-C");
-    arguments.push_back(destDir);
-  } else if(extension == "tar.gz"){
-    util = "tar";
-    arguments.emplace_back("-xvzf");
-    arguments.push_back(archiveSrc);
-    arguments.emplace_back("-C");
-    arguments.push_back(destDir);
-  } else if (extension == "zip"){
-    util = "unzip";
+  } */
+  else if ((long)archiveSrc.find(".zip") >= 0){
+    archiveUtil = "unzip";
     arguments.push_back(archiveSrc);
     arguments.emplace_back("-d");
     arguments.push_back(destDir);
@@ -137,22 +197,23 @@ ExtractSource(
     ctx->abort("Cannot handle source archive: "+FSUtil::GetBaseName(archiveSrc));
   }
 
-  ext::optional<std::string> executable = filesystem->findExecutable(util, ctx->executableSearchPaths());
+  ext::optional<std::string> executable = filesystem->findExecutable(archiveUtil, ctx->executableSearchPaths());
   if (!executable) {
     // If program isn't available, fail.
     if (!executable)
-      ctx->abort("error: could not find "+util+" in PATH\n");
+      ctx->abort("error: could not find "+ archiveUtil +" in PATH\n");
   }
-  // create dmg file
-  MemoryContext hdiutil = process::MemoryContext(
+
+  // extract archive file
+  MemoryContext archiveUtilContext = process::MemoryContext(
       *executable,
       ctx->currentDirectory(),
       arguments,
       ctx->environmentVariables());
-  ext::optional<int> exitCode = launcher->launch(filesystem, &hdiutil);
+  ext::optional<int> exitCode = launcher->launch(filesystem, &archiveUtilContext);
 
   if (!exitCode || *exitCode != 0)
-    ctx->abort(util+" Error: "+ strerror(errno));
+    ctx->abort(archiveUtil +" Error: "+ strerror(errno));
 
   return 0;
 }
@@ -164,8 +225,8 @@ MountSystemImage(const process::PDBContext *ctx, process::Launcher *launcher, Fi
   ext::optional<std::string> executable;
 
   // check if already mounted
-  auto fpath = filesystem->readSymbolicLink(FSUtil::NormalizePath(ctx->PDBRoot+"/DistributionImage"));
-  if(fpath != ext::nullopt)
+  auto tmpStr = filesystem->resolvePath(ctx->getDestinationRootPath());
+  if(!tmpStr.empty())
     return;
 
   // search for hdiutil
@@ -195,138 +256,74 @@ FetchAction::Run(process::User const *user,
                  process::Launcher *processLauncher,
                  libutil::Filesystem *filesystem, Options const &options)
 {
+  int ret = 0;
+  plist::Dictionary *allProjects;
+  plist::Array *globalSourceSites;
+  plist::Dictionary *projectSourceSiteOverride;
+  std::string projectNameOption;
+  std::string sourceDir;
+  std::string archivePath;
+
+  // is there a need to check if project arg is okay?
   if (!options.project())
     processContext->abort("Error: Project arg not provided");
 
-  int ret = 0;
-  auto plistRootDict = plist::CastTo<plist::Dictionary>(processContext->openPlist(filesystem).get());
-  if (plistRootDict == nullptr) return -1;
-  auto projectName = *options.project();
-  auto sourceSites = plistRootDict->value<plist::Dictionary>("source_sites");
-  auto allProjects = plistRootDict->value<plist::Dictionary>("projects");
+  // open plist file
+  processContext->openPlist(filesystem);
+
+  projectNameOption = *options.project();
+  globalSourceSites = processContext->getSourceSites();
+  allProjects = processContext->getPlistRootDictionary()->value<plist::Dictionary>("projects");
+
+  assert(allProjects != nullptr && globalSourceSites != nullptr && !projectNameOption.empty());
 
   // if we want to fetch all just call ourselves recursively for every project.
-  if(projectName == "all"){
-    for(auto project = allProjects->begin(); project != allProjects->end();
-         project++ ){
-      ((Options&)options).setProject(*project);
+  if(projectNameOption == "all") {
+    for(auto currProject = allProjects->begin(); currProject != allProjects->end(); currProject++){
+      ((Options&)options).setProject(*currProject);
       ret = FetchAction::Run(user, processContext, processLauncher, filesystem, options);
       if (ret != 0)
         return -1;
     }
   }
 
-  auto projectDict = allProjects->value<plist::Dictionary>(projectName);
-  auto projectVersion = options.projectVersion().value_or(projectDict->value<plist::String>("version")->value());
-  auto projectNameVersionPrefix = projectName + "-" + projectVersion;
+  // get project info
+  pdbuild::Project project(processContext, options);
+  // check for source_site override
+  projectSourceSiteOverride = project.getProjectSourceSite();
 
-  if(std::find(projectDict->begin(), projectDict->end(), "original") != projectDict->end()){
-    projectDict = allProjects->value<plist::Dictionary>(projectDict->value<plist::String>("original")->value());
+  // project specific "source_site" overrides global "source_site"
+  if (projectSourceSiteOverride != nullptr) {
+    auto sourceSite = projectSourceSiteOverride;
+    ret = ProcessSourceSite(processContext, filesystem, sourceSite, &project, archivePath);
+  } else {
+    // loop every source_site
+    auto sourceSites = globalSourceSites;
+    for (auto sourceSiteObj = sourceSites->begin(); sourceSiteObj != (sourceSites)->end(); sourceSiteObj++) {
+      auto sourceSite = plist::CastTo<plist::Dictionary>(sourceSiteObj->get());
+      ret = ProcessSourceSite(processContext, filesystem, sourceSite, &project, archivePath);
+      // if we downloaded successfully, break.
+      if(ret == 0) break;
+    }
   }
-
-  auto projectSource = projectDict->value<plist::Dictionary>("source");
-  auto host = projectSource->value<plist::String>("host")->value();
-  std::string archivePath;
-
-  if (host == SourceHost::Github) {
-    auto repo = projectSource->value<plist::String>("repo")->value();
-    ret = DownloadGithubSource(repo, projectNameVersionPrefix);
-  } else if (host == SourceHost::ArchiveUrl){
-    auto repo = projectSource->value<plist::String>("url")->value();
-    ret = DownloadUrlSource(repo, projectNameVersionPrefix);
-  } else if (host == SourceHost::Apple) {
-    //    auto repo = projectSource->value<plist::String>("url")->value();
-    ret = DownloadAppleSource(projectName, projectVersion, projectNameVersionPrefix);
-  } else if (host == SourceHost::Local) {
-    ret = !DownloadLocalSource(
-        processContext, filesystem,
-        sourceSites->value<plist::String>("local")->value(),
-        projectNameVersionPrefix,
-        archivePath);
-  } else processContext->abort("Unsupported project source found");
 
   if (ret != 0)
     return ret;
 
   // if we reach here, the project archive is in source cache directory
-
   // check that the dmg is mounted.
-  auto dmgFile = processContext->PDBRoot+"/.pdbuild/distribution_systemimage.sparsebundle";
-  MountSystemImage(processContext, processLauncher, filesystem, dmgFile);
+  MountSystemImage(processContext, processLauncher, filesystem, processContext->getDestinationImagePath());
   // create relevant directories
-  if(!filesystem->exists(processContext->PDBRoot+"/DistributionImage/Sources"))
-    filesystem->createDirectory(processContext->PDBRoot+"/DistributionImage/Sources", false);
+  if(!filesystem->exists(processContext->getDestinationSourcesPath()))
+    filesystem->createDirectory(processContext->getDestinationSourcesPath(), false);
 
   // extract
-  auto sourceDir = processContext->PDBRoot+"/DistributionImage/Sources";
-  ExtractSource(processContext, processLauncher, filesystem, archivePath, sourceDir);
+  ExtractSource(processContext, processLauncher, filesystem, archivePath, project.getProjectNameAndVersion());
 
   // create receipts for source
 
   return ret;
 }
-
-
-// Download "$SourceCache" "$filename" "$($DARWINXREF source_sites $projnam)"
-//static int DownloadSource(Filesystem *fs, std::string buildroot, std::string dest, std::string src){
-//    auto fs = this->config->_fs;
-//    auto filename = fname;
-//
-//    // check if the source was overidden in project
-//    if (this->source.host == project_source_t::Apple){
-//        // TODO: finish
-//    } else if (this->source.host == project_source_t::Github){
-//        // TODO: finish
-//    } else if (this->source.host == project_source_t::Link){
-//        // TODO: finish
-//    } else if (this->source.host == project_source_t::Local){
-//        // TODO: aren't we supposed to copy then extract?
-//        auto rmi = std::any_cast<strpair_t>(this->source.remote_info);
-//        auto link = rmi.second;
-//        bool ret = true;
-//
-//        if (link == "inherit") {
-//            link = config->source_sites.at(0);
-//        }
-//
-//        link += "/" + this->name + "-" + this->version;
-//
-//        if (rmi.first == "Archive"){
-//            ret = fs.copyFile(link, config->source_cache);
-//        } else if (rmi.first == "directory"){
-//            ret = fs.copyDirectory(link, config->source_cache+"/"+this->name+"-"+ this->version, true);
-//        } else {
-//            std::cerr << "Error." << std::endl;
-//            exit(-1);
-//        }
-//        if(!ret){
-//            std::cerr << "io operation failed." << std::endl;
-//            exit(-1);
-//        }
-//    } else {
-//        // use default source_sites
-//        // TODO: ask user if they want to specify a custom url.
-//        if(this->source.host == project_source_t::None){
-//            auto sites = this->config->source_sites;
-//            if (sites.size() < 1) {
-//                std::cerr << "Cannot Download file for project" << this->name << std::endl;
-//                exit(-1);
-//            }
-//
-//            // TODO: site is most likely going to be opensource.apple.com, but this can be improved
-//
-//            for (auto &site : sites) {
-//                filename += "-" + this->version + ".tar.gz";
-//                DownloadFile(site+"/"+filename, config->source_cache+"/.tmp."+filename);
-//            }
-//        }
-//    }
-//
-//
-//
-//    return true;
-//
-//}
 
 pdbuild::FetchAction::FetchAction() = default;
 pdbuild::FetchAction::~FetchAction() = default;
