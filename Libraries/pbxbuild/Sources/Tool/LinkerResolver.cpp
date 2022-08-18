@@ -12,6 +12,7 @@
 #include <pbxbuild/Tool/OptionsResult.h>
 #include <pbxbuild/Tool/Tokens.h>
 #include <libutil/FSUtil.h>
+#include <iostream>
 
 namespace Tool = pbxbuild::Tool;
 using libutil::FSUtil;
@@ -75,6 +76,10 @@ resolve(
     if (_linker->identifier() != Tool::LinkerResolver::LibtoolToolIdentifier() || environment.resolve("MACH_O_TYPE") != "staticlib") {
         special.push_back("-F" + environment.resolve("BUILT_PRODUCTS_DIR"));
     }
+
+    // FIXME: xcbuild does not always include link dependencies for some reason.
+    //  This fix may not conform to standard xcodebuild behavior, but fixes it for now.
+    special.push_back("-L" + environment.resolve("BUILT_PRODUCTS_DIR"));
 
     for (Tool::Input const &library : inputLibraries) {
         std::string base = FSUtil::GetBaseNameWithoutExtension(library.path());

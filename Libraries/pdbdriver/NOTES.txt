@@ -1,0 +1,8 @@
+Since the sources have changed drastically since OSX 10.8/9 (which I think was the last
+darwinbuld-supported distro). We have to manually figure out the dependencies and manually
+add them into the build plist. However, due to the weird self-include dependencies, we have
+to add an "xcodeBuildSettings" property to include directories in project x. For example, pthread
+includes its own header files with angle brackets, but those headers aren't installed in the Destination Root,
+nor are their directories specified in the build settings.
+Therefore, we add HEADER_SEARCH_PATH ==> "$(SRCROOT)/includedir_X" to the "xcodeBuildSettings" dictionary property.
+We can also modify any broken settings with this property without having to hardcode them into pdbuild.

@@ -85,7 +85,7 @@ Help(const process::DefaultContext& processContext,
   return 0;
 }
 
-static std::string getBuild(DefaultFilesystem *filesystem, const std::string& buildroot){
+static std::string getOsBuild(DefaultFilesystem *filesystem, const std::string& buildroot){
   auto path = buildroot+"/.pdbuild/build";
   std::string buildString;
   if (!filesystem->exists(path))
@@ -120,7 +120,7 @@ main(int argc, char **argv)
   dbpath = buildRoot + "/.pdbuild/xref.db";
 
   // get build number
-  build = processContext.environmentVariable("PDB_BUILD").value_or(getBuild(&filesystem, buildRoot));
+  build = processContext.environmentVariable("PDB_BUILD").value_or(getOsBuild(&filesystem, buildRoot));
 
   // check commandline args
   result = libutil::Options::Parse<Options>(&options, processContext.commandLineArguments());

@@ -21,6 +21,14 @@ using process::DefaultLauncher;
 using process::Context;
 using libutil::Filesystem;
 
+// ripped from stackoverflow
+[[maybe_unused]] static char *convert(const std::string & s)
+{
+   char *pc = new char[s.size()+1];
+   std::strcpy(pc, s.c_str());
+   return pc; 
+}
+
 DefaultLauncher::
 DefaultLauncher() :
     Launcher()
@@ -59,6 +67,19 @@ launch(Filesystem *filesystem, Context const *context)
     execArgs.push_back(nullptr);
     char *const *cExecArgs = const_cast<char *const *>(execArgs.data());
 
+    /* FIXME: I don't remember why I did this */
+    // NOTE: maybe use std::transform here instead
+    // std::vector<const char*> cExecArgsVec;
+    // std::transform(execArgs.begin(), execArgs.end(), std::back_inserter(cExecArgsVec), convert);
+    // cExecArgsVec.push_back(nullptr);
+    // char *const *cExecArgs = const_cast<char *const *>(cExecArgsVec.data());
+
+    // char** ptr = (char**)cExecArgs;
+    // while  (*ptr != 0){
+    //     printf("DEBUGGING :-:-:-:-:-:-:-:---------------> %s\n", (char*)*ptr);
+    //     ptr++;
+    // }
+
     /* Compute environment variables. */
     std::vector<std::string> envValues;
     for (auto const &value : context->environmentVariables()) {
@@ -90,6 +111,7 @@ launch(Filesystem *filesystem, Context const *context)
     } else if (pid == 0) {
         /* Fork succeeded, new process. */
         if (pipe_setup_success) {
+            /* FIXME: Should we merge stdout and stderr? some tools depend on them separately */
             /* Setup pipe to parent, redirecting both stdout and stderr */
             dup2(pfd[1], STDOUT_FILENO);
             dup2(pfd[1], STDERR_FILENO);
